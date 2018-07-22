@@ -34,6 +34,11 @@ ui = UI_HUB.UI(main)
 import charClass, placeClass, doorClass, invFurnClass
 
 location = "miningPlatform01"
+
+
+
+
+
 rooms = []
 roomTree = ET.parse('DATA\\rooms.xml')
 roomRoot = roomTree.getroot()
@@ -63,6 +68,7 @@ for child in doorRoot:
                         temp.room1 = room
                     elif room.name == subchild[1].text:
                         temp.room2 = room
+                    #establishes door connection
                         
                     room.doors.append(temp)
                     checkVal = True
@@ -70,6 +76,7 @@ for child in doorRoot:
             if checkVal == False:
                 print("deleting door")
                 del temp
+#setting up doors. the deletion part helps to prevent the creation of invalid doors.
 
 
 
@@ -91,15 +98,43 @@ for child in furnRoot:
                                                                                         [eval(child[7][0].text), child[7][1].text],
                                                                                         [eval(child[8][0].text), child[8][1].text, eval(child[8][2].text)]))
         vitalFurns[child.attrib["name"]].furnishings.remove(child.attrib["name"])
-                                                         #note: currently does not access 'hidden'. I could change that later.    
+                                                         #note: currently does not access 'hidden'. I could change that later.
+#setting up furnishings.
 
 for room in rooms:
-    print(room.furnishings)
     if not room.furnishings == []:
         for furnishing in room.furnishings:
             furnishingList.append(furnishing)
-print(furnishingList)
+#setting up the furnishing list since it's needed for items inside furnishings
+
+npcTree = ET.parse('DATA\\NPCs.xml')
+npcRoot = npcTree.getroot()
+vitalNPCs = {} #note: this doesn't mean unkillable, it means 'the ones needed in the map'.
+for room in rooms:
+    if len(room.characters) > 0:
+        for obj in room.characters:
+            vitalNPCs[obj] = room
+
+for child in npcRoot:
+    if child.attrib["name"] in vitalNPCs:
+        #dialogue will be in the form <element topic=""> [dialogue] </element> hence the array formatting.
+        vitalNPCs[child.attrib["name"]].objects.append(charClass.nonPlayerCharacter(child[0].text,
+                                                                                    child[1].text, child[2].text, child[3].text, eval(child[4].text),
+                                                                                    [elem.text for elem in child[5]], [elem.text for elem in child[6]],
+                                                                                    [elem.text for elem in child[7]], [elem.text for elem in child[8]],
+                                                                                    [elem.text for elem in child[9]], [eval(child[10][0].text), child[10][1].text],
+                                                                                    eval(child[11].text)))
+        vitalNPCs[child.attrib["name"]].objects.remove(child.attrib["name"])
+#setting up NPCs. anything that has inventory objects should be set up before the inventory objects themselves.
         
+npcList = []
+for room in rooms:
+    if not room.characters == []:
+        for npc in room.characters:
+            npcList.append(npc)
+#same issue as furnishings.
+
+            
 
 invTree = ET.parse('DATA\\inventoryObjects.xml')
 invRoot = invTree.getroot()
@@ -116,15 +151,44 @@ for child in invRoot:
                                                                                    [eval(child[5][0].text), [elem.text for elem in child[5][1]]], eval(child[6].text),
                                                                                    [eval(child[7][0].text), child[7][1].text], [child[8][0].text, child[8][1].text]))
         vitalInv[child.attrib["name"]].objects.remove(child.attrib["name"])
+#setting up inventory objects in rooms
+
+vitalInv = {}
+for furn in furnishingList:
+    if len(furn.containedObjects) > 0:
+        for obj in furn.containedObjects:
+            vitalInv[obj] = furn
+
+for child in invRoot:
+    if child.attrib["name"] in vitalInv:
+        vitalInv[child.attrib["name"]].objects.append(invFurnClass.inventoryObject(child.attrib["name"], child[0].text, child[1].text, [eval(child[2][0].text), child[2][1].text],
+                                                                                   [eval(child[3][0].text), child[3][1].text], eval(child[4].text),
+                                                                                   [eval(child[5][0].text), [elem.text for elem in child[5][1]]], eval(child[6].text),
+                                                                                   [eval(child[7][0].text), child[7][1].text], [child[8][0].text, child[8][1].text]))
+        vitalInv[child.attrib["name"]].objects.remove(child.attrib["name"])
+#setting up inventory objects inside furnishings
+
+vitalInv = {}
+for npc in npcList:
+    if len(npc.inventory) > 0:
+        for item in npc.inventory:
+            vitalInv[item] = npc
             
+for child in invRoot:
+    if child.attrib["name"] in vitalInv:
+        vitalInv[child.attrib["name"]].objects.append(invFurnClass.inventoryObject(child.attrib["name"], child[0].text, child[1].text, [eval(child[2][0].text), child[2][1].text],
+                                                                                   [eval(child[3][0].text), child[3][1].text], eval(child[4].text),
+                                                                                   [eval(child[5][0].text), [elem.text for elem in child[5][1]]], eval(child[6].text),
+                                                                                   [eval(child[7][0].text), child[7][1].text], [child[8][0].text, child[8][1].text]))
+        vitalInv[child.attrib["name"]].objects.remove(child.attrib["name"])
+#setting up npc inventories
+
+
+
 for room in rooms:
     print("objects")
     print(room.objects)
-##vitalInv = {}
-##for furn in furnishingList:
-##    if furn.containedObjects < 0:
-##        for obj in furn.containedObjects:
-##            vitalInv[obj] = furn
+
 
 
 playerCharacter = charClass.playerCharacter("Scavenger", rooms[0])
