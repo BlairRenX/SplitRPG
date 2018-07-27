@@ -8,10 +8,18 @@ from placeClass import *
 from doorClass import *
 from invFurnClass import *
 
+
+
+##  Interpret is called first,
+##  Interpret calls Simplify before it does anything serious,
+##  At the end of interpret, Execute is called
+##  Execute calls match input before doing anything important
+
+
 def Execute(text, player):
     action = {}
 
-    #text in form {'verb':Object,'using/do': object}
+    #text in form {'verb':Object,'using/do': Object}
     
     error = False
 
@@ -24,30 +32,30 @@ def Execute(text, player):
             
         #ui.write(action) # Writes action done ToDO maybe remove this
         
-        if error in action:
+        if error in action: # if any prev functions didn't suceed
             error = True
-        for key in action:
+        for key in action: # double check nothing fucked up
             if isinstance(action[key],dict):
                 error = True
             
-    if not error:
-        if 'using' not in action:
-            action['using'] = None
+    if not error: 
+        if 'using' not in action: # if ya use nothing
+            action['using'] = None # passes None when nothing is used
             
         
         allowed = {Place:['debug','search'],
-                   Door:['debug','search','open','close','go','lock','unlock','block','unblock'],
+                   Door:['debug','search','open','close','go','lock','unlock','block','unblock'],   # all the shit that can be done to a type
                    roomFurnishing:['debug','open','close','search','lock','unlock'],
                    inventoryObject:['debug','search','using','take','give','equip'],
                    nonPlayerCharacter:['debug','search','attack','talk','block','unblock'],
                    playerCharacter:['debug','search'],
-                   str:['search','open']} # inventory
+                   str:['search','open']} # inventory (this is fuck ik, but haden didn't want the inventory to be a seperate class for pretty gd reasons)
 
-        if player.doing[2]: # Certain things like blocking a doorway will prevent the player from doing other things within the room
-            toDel = []
+        if player.doing[2]: # Certain things like blocking a doorway will prevent the player from doing other things within the room (causing attempts to do them to fail)
+            toDel = []   
             ui.write("You are still %s the %s. Doing this requires will prevent you from doing certain things until you stop."%(player.doing[0],player.doing[1].name))
             for key in allowed:
-                if not isinstance(key,(Place,playerCharacter,inventoryObject,str,type(player.doing[1]))): # keep an eye on this here, potential bug
+                if not isinstance(key,(Place,playerCharacter,inventoryObject,str,type(player.doing[1]))): # keep an eye on this here, potential bug (because it's never (24/7/18) been tested)
                     toDel.append(key)
                     
             for key in action:
@@ -57,14 +65,15 @@ def Execute(text, player):
             for key in toDel:
                 del allowed[key]
                         
-                                  
+                                  # honetsly i don't remember writing that section but we haven't (24/7/18) implemented a situation where it will come up yet so...
             
                 
-        
+
+        # spine
         for key in action:
             allow = False
             for thing in allowed:
-                if key in allowed[thing] and isinstance(action[key],thing):   # spine
+                if key in allowed[thing] and isinstance(action[key],thing):
                     allow = True
                     print(key)
                     
@@ -204,8 +213,13 @@ def Execute(text, player):
                 ui.write('You cannot %s that.'%key)
                         
                             
-    else:
+    else: # if error
         ui.write('You cannot do this.')
+
+
+
+
+        
 
 ##                  disallowed = {'search':False, 'move':False, 'attack':False, 'talk':False, 'open':False, 'close':False, 'using':False, 'act':False,'equip':False,'take':False}
 ##            if isinstance(action[key],Place):
@@ -231,6 +245,8 @@ def Execute(text, player):
 
 def MatchInput(text,player):
 
+    #This one is a mess
+
     
     #need to add room and player to things
     #look: around, about, room
@@ -238,22 +254,28 @@ def MatchInput(text,player):
     
     room = player.currentRoom
    
-    things,inventoryThings = room.showAllObjectsAndNames()
+    things,inventoryThings = room.showAllObjectsAndNames() # gets all the object names and referances in a wee array
+
+
+    # Takes form [[[Name for thing 1, Name for thing 2...],[thing 1, thing 2]], repeated for furnishings and etc]
+
+    
 ##    for thingType in things:
 ##        for thing in thingType:
 ##            print(thing)
 
-    things.append([['around','room','about'],[room,room,room]])
-    things.append([['self','myself','me'],[player,player,player]])
-    things.append([['inventory','bag'],['inventory','inventory']])
+    things.append([['around','room','about'],[room,room,room]]) # these are all treated as the room
+    things.append([['self','myself','me'],[player,player,player]]) # these strings are treated as player
+    things.append([['inventory','bag'],['inventory','inventory']])# these as inventory
     whereLooking = 'sight'
+    
     for key in text:
-        if 'my ' in text[key]:
+        if 'my ' in text[key]: # putting 'my' before nouns makes default look in inventory rather than room
             things = inventoryThings            
             text[key] = text[key].replace('my ','')
-            whereLooking = 'your inventory'
+            whereLooking = 'your inventory' # used in output "there is not spoon in your inventory"
         
-    similar = ''
+    similar = '' 
     
 
     action = {}                  
@@ -263,25 +285,26 @@ def MatchInput(text,player):
  
         
     for key in text:
-        action[key] = ''
-        for thingList in things:
-            for i in range(len(thingList[0])):
+        action[key] = '' # there should only be one key in text, action now holds this indexing empty string
+        for thingList in things: # iterates for everything that can be interacted with
+            for i in range(len(thingList[0])): # there are a few layers of array
                 if text[key] == thingList[0][i]: # if exact match with name
-                    action[key] = thingList[1][i]
-                    break  #this might not work bug
+                    action[key] = thingList[1][i] # Sets value held by current verb to obj referance
+                    break  #this might not work, bug (edit: i don't know why this might not work)
 
-                elif text[key] in thingList[0][i] and similar == '': #Will catch any matching word
-                    action[key] =  thingList[1][i]
+                elif text[key] in thingList[0][i] and similar == '': #Will catch any matching word (such as when player types only 'open door' or ' go north' both - 
+                    action[key] =  thingList[1][i]                   # - resilve to the obj ref for 'north door'
                     similar = key
-                elif text[key] in thingList[0][i] and similar != '':# Unless more than one object matches
+                elif text[key] in thingList[0][i] and similar != '':# Unless more than one object matches, in which case user will be asked to be more specific
                     action[similar] = ''
 
-    for key in action:
-        if action[key] == '':
-            break
+
+    for key in action: # only one key
+        if action[key] == '': # if the key hasn't been set to an obj ref
+            break # continues to next bit of code (next bit is complex so doesn't need to always run) more lenient 
         else:
-            done = True
-            return(action[key])
+            done = True # yay
+            return(action[key]) # sucesfull
             
       
     if not done:
@@ -290,39 +313,39 @@ def MatchInput(text,player):
             thingType = [] 
             if action[key] == '':
                 for thingList in things:
-                    for i in range(len(thingList[0])):
-                        thingList[0][i] = thingList[0][i].split()
-                        if thingList[0][i][-1] in text[key]:
-                            thingType.append([key,thingList[1][i],thingList[0][i]])
+                    for i in range(len(thingList[0])): # same as above
+                        thingList[0][i] = thingList[0][i].split() # splits multi word names into words
+                        if thingList[0][i][-1] in text[key]: # if the final word of the obj is anywhere in the text
+                            thingType.append([key,thingList[1][i],thingList[0][i]]) # write it in a list (hopes are this list will only have one element)
                             
                         
                             
-            if len(thingType)!= 0:
+            if len(thingType)!= 0: # we have at least one match!
                 
                 desc = []
                 for i in range(len(thingType)):
-                    desc.append('')
+                    desc.append('') # sets up new element as str
                     
-                    for x in thingType[i][2]:
+                    for x in thingType[i][2]: # this is kinda a cluncky way to do it but i didn't know the inbuilt command at the time
                         desc[i] += x+' '
-                    desc[i] = desc[i][:-1]
+                    desc[i] = desc[i][:-1] # re-stitches the sentence of broken words back together (minus the trailing space)
                     
-                if len(thingType) == 1:
-                    ui.write('There is only one %s in %s: the %s.'%(thingType[0][2][-1],whereLooking,desc[0])) # This is broken , bug
+                if len(thingType) == 1: # only one match
+                    ui.write('There is only one %s in %s: the %s.'%(thingType[0][2][-1],whereLooking,desc[0])) # This is broken , bug (edit: who knows what's wrong w this)
                     action[thingType[0][0]] = thingType[0][1]
-                    return(action[key])
+                    return(action[key]) # sucess, returns obj
                 else:
-                    ui.write('There is more than one of these in %s:'%whereLooking)
+                    ui.write('There is more than one of these in %s:'%whereLooking) # there is more than one similar obj name
                     for item in desc:
-                        ui.write('There is a %s'%item)
+                        ui.write('There is a %s'%item) # writes out what it's confused about
                     return({'error':'Ambiguous object'})
             else:
-                ui.write('there is no %s in %s!'%(text[key].split()[-1],whereLooking))
+                ui.write('there is no %s in %s!'%(text[key].split()[-1],whereLooking)) # if there was no match at all in room (only now is inventory considered UNLESS USED 'my' IN INPUT)
                 # Check inventory for object
                 invThings = [[],[]]
                 invObjects = [[],[]]
                 
-                for i in range(len(inventoryThings[0][0])):
+                for i in range(len(inventoryThings[0][0])): # yeah this is fuck but it works the samw way
                     invThings[0].append(inventoryThings[0][0][i].split()[-1])
                     invThings[1].append(inventoryThings[0][1][i])
                     if invThings[0][i] in text[key]:
@@ -344,13 +367,13 @@ def MatchInput(text,player):
 
 def Interpret(text,player):
 
-    text,verbs = Simplify(text)
+    text,verbs = Simplify(text)  # Calls simplify on the text in box
     
 
-    objVerbs = ['take','give','equip'] # remember to add above too
+    objVerbs = ['take','give','equip'] # remember to add above too (this may be obsolete)
     objVerb = ''
 
-    verbs.remove('using')
+    verbs.remove('using') # using treated differently
     using = 'using'
     
     currentVerb = ''
@@ -360,9 +383,9 @@ def Interpret(text,player):
     do = {}
 
 
-    for word in words:
+    for word in words: # each word in sentence
         for verb in verbs: # Finds verb in sentence
-            if word == verb:
+            if word == verb: 
                 verbNumber+=1
                 do[verb] = ''
                 currentVerb = verb
@@ -437,7 +460,7 @@ def Interpret(text,player):
             del do['to/from']
         
     
-    for key in do:
+    for key in do: # Makes sure each verb has some nouns to go with it
         do[key] = do[key].replace('on ','') # remove garbage word 'on', used in dirty fix
         do[key] = do[key].replace('to ','')
         do[key] = do[key].replace('from ','')
@@ -450,9 +473,9 @@ def Interpret(text,player):
                 return()
                 
    
-    if verbNumber >1 or usingNumber>1:
+    if verbNumber >1 or usingNumber>1: # more than one verb/using
         Execute({'error':'All that at once?'},player)
-    elif verbNumber == 0:
+    elif verbNumber == 0: # no verbs
         Execute({'error':'What are you trying to do?'},player)
     else:
         Execute(do,player) #sucess!
@@ -460,6 +483,8 @@ def Interpret(text,player):
                 
         
 def Simplify(text):
+
+    # all the verbs
     
     toRemove = []
     fillerWords = ['','in','the','attempt','through','teh','a','try','trying','at','near','for','behind','under','while','and','by','toRemove']
@@ -501,23 +526,23 @@ def Simplify(text):
     text = text.split()
     sentence = ''
     
-    for i in range(len(text)):
-        for verb in verbs:
-            if text[i] in words[verb]: # ***The good bit***
+    for i in range(len(text)): # for each word in sentnce
+        for verb in verbs:     # for each verb in verbs
+            if text[i] in words[verb]: # ***The good bit***, if a word is in the array held by dictionary 'words'
                 text[i] = verb  #replaces synonms of verbs with general case of verb from verbs array
-            elif i < len(text) -1:
-                if text[i] + ' ' + text[i+1] in words[verb]:
-                    text[i] = verb
-                    text[i+1] = 'toRemove'
+            elif i < len(text) -1: # if not the last word in sentence 
+                if text[i] + ' ' + text[i+1] in words[verb]: # checks two words to see - currently obsolete
+                    text[i] = verb # replace first of word pair
+                    text[i+1] = 'toRemove' # discard second
 
                     
-        if i > 0:
+        if i > 0: # removes repeated words (comes up like use with which resolve to the same word twice)
             if text[i] == text[i-1]:
                 text[i-1] = 'toRemove'
                 
     
         if text[i] in fillerWords:
-            toRemove.append(text[i]) # get rid of garbage words
+            toRemove.append(text[i]) # get rid of garbage words (array as you can'd dynamically alter the length of a list you're iterating thorugh
             
         if text[i][-1] in punctuation:
             text[i] = text[i][:-1] # get rid of punctuation
@@ -532,11 +557,19 @@ def Simplify(text):
     
     sentence = sentence[:-1] #remove trailing ' '
 
-    if 'unlock' in text and 'open' in text:
+    if 'unlock' in text and 'open' in text: # catches phrases like "Smash Open" which resolve to unlock open - open automatically unlocks if able
         text.replace("unlock","")
     
     #Special cases
-    if sentence in ('inventory','inv'):
+    if sentence in ('inventory','inv'): # short hand, just typing inv resolves to "open inventory"
         sentence = 'open inventory'
      
     return(sentence,verbs)
+
+
+
+
+
+
+
+
