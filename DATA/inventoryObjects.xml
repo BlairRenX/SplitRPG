@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <itemList>
-<item name="smallRock">
+<item id="smallRock" name="small rock">
 <bDesc>a small rock</bDesc>
 <iDesc>It has a comforting heft</iDesc>
 
